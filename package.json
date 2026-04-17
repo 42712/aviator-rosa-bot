@@ -1,20 +1,24 @@
 {
-  "name": "aviator-rosa-bot",
+  "name": "aviator-rosa-bot-oracle",
   "version": "1.0.0",
-  "description": "Bot de sinais para Aviator - Estratégia Vela Rosa",
+  "description": "Bot de sinais para Aviator - Oracle Cloud",
   "main": "index.js",
-  "engines": {
-    "node": ">=18.0.0"
-  },
   "scripts": {
     "start": "node index.js",
-    "build": "./render-build.sh"
+    "pm2:start": "pm2 start index.js --name aviator-bot",
+    "pm2:stop": "pm2 stop aviator-bot",
+    "pm2:restart": "pm2 restart aviator-bot",
+    "pm2:logs": "pm2 logs aviator-bot"
   },
   "dependencies": {
     "puppeteer": "^21.0.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "telegraf": "^4.15.0",
-    "dotenv": "^16.3.0"
+    "dotenv": "^16.3.0",
+    "pm2": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
