@@ -17,23 +17,23 @@ class TelegramBot {
     this.bot.launch();
     console.log('🤖 Telegram bot conectado');
     
-    // Envia mensagem de inicialização
     this.sendMessage(`
-🚀 *BOT AVIATOR ROSA INICIADO* 🚀
+🚀 *BOT AVIATOR ROSA - ORACLE CLOUD* 🚀
 
 ✅ Estratégia carregada
-✅ Monitoramento em tempo real
+✅ Monitoramento 24/7
 ✅ Aguardando padrões...
 
 📊 *Regras ativas:*
-• Compressão (5+ velas <2x)
-• Reset (1.00x)
-• Falso alívio
-• Pós-explosão
+• Compressão (5+ velas <2x) → +3
+• Reset (1.00x) → +2
+• Reset duplo → +3
+• Falso alívio → bônus
+• Pós-explosão → +2
 
-🎯 Score mínimo para sinal: 5/10
+🎯 Score mínimo: 5/10
 🎲 Objetivo: 5x a 10x+
-⚠️ Máximo 3 tentativas por sinal
+⚠️ Máximo 3 tentativas
     `);
   }
   
@@ -53,19 +53,17 @@ class TelegramBot {
     let message = '';
     if (entrar) {
       message = `
-🚨 *⚡ SINAL DE ENTRADA LIBERADO ⚡* 🚨
+🚨 *⚡ SINAL DE ENTRADA ⚡* 🚨
 
 ━━━━━━━━━━━━━━━━━━━━━━
 🎯 *SCORE:* ${score}/10
 📋 *MOTIVO:* ${motivo}
 ━━━━━━━━━━━━━━━━━━━━━━
 
-⚡ *AÇÃO:* Entrar nas próximas 2-3 rodadas
+⚡ *AÇÃO:* Entrar próximas 2-3 rodadas
 🎲 *OBJETIVO:* 5x a 10x+
 
-⚠️ *GERENCIAMENTO:* 
-• Máximo 3 tentativas
-• Stop loss nas 3 perdas
+⚠️ *GERENCIAMENTO:* 3 tentativas
 
 🎯 *BOA SORTE!* 🍀
       `;
@@ -90,7 +88,7 @@ class TelegramBot {
     const emoji = wasWin ? '🎉🎉🎉' : '😔';
     
     let message = `
-📢 *RESULTADO DA RODADA*
+📢 *RESULTADO*
 
 ━━━━━━━━━━━━━━━━━━━━━━
 🎲 *Multiplicador:* ${multiplier}x
@@ -99,20 +97,12 @@ class TelegramBot {
     `;
     
     if (wasWin) {
-      message += `
-${emoji} *ACERTOU!* ${emoji}
-
-✅ Saiu no lucro!
-🛑 Ciclo encerrado. Aguardando próximo sinal.
-      `;
+      message += `\n${emoji} *ACERTOU!* ${emoji}\n✅ Ciclo encerrado.`;
     } else if (tentativasRestantes !== null) {
-      message += `
-${emoji} *ERROU* ${emoji}
-
-📉 Tentativas restantes: ${tentativasRestantes}
-
-${tentativasRestantes > 0 ? '🔁 Continue tentando!' : '🛑 Ciclo encerrado. Aguardando próximo sinal.'}
-      `;
+      message += `\n${emoji} *ERROU* ${emoji}\n📉 Restam: ${tentativasRestantes}`;
+      if (tentativasRestantes === 0) {
+        message += `\n🛑 Ciclo encerrado. Aguardando próximo sinal.`;
+      }
     }
     
     await this.sendMessage(message);
