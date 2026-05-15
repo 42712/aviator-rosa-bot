@@ -1,0 +1,17 @@
+{
+    "name": "Painel Aviator",
+    "version": "1.0.0",
+    "manifest_version": 2,
+    "description": "Painel Aviator - Acesse o painel direto no Kiwi Browser",
+    "permissions": [
+        "storage",
+        "https://*/"
+    ],
+    "browser_action": {
+        "default_title": "Painel Aviator",
+        "default_popup": "popup.html"
+    },
+    "icons": {
+        "128": "icon.png"
+    }
+}
