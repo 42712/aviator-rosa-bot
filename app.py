@@ -1,10 +1,5 @@
-"""Entrypoint WSGI para o Render - usa simple-websocket (Python puro)"""
-import os
-import sys
-import traceback
-
-sys.stdout.reconfigure(line_buffering=True)
-sys.stderr.reconfigure(line_buffering=True)
+"""Entrypoint - usa simple-websocket (Python puro)"""
+import os, sys, traceback
 
 backend = os.path.join(os.path.dirname(__file__), 'backend')
 sys.path.insert(0, backend)
