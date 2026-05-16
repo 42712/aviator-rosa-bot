@@ -1,4 +1,7 @@
-"""Entrypoint WSGI para o Render"""
+"""Entrypoint WSGI para o Render - inicializa gevent antes de tudo"""
+import gevent.monkey
+gevent.monkey.patch_all()
+
 import os, sys
 
 backend = os.path.join(os.path.dirname(__file__), 'backend')
