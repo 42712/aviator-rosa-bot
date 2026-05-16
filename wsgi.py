@@ -1,14 +1,14 @@
-"""Servidor principal para o Painel Aviator - compatível com Render"""
-import os
-import sys
+"""Entrypoint WSGI para o Render - sem conflito de nome com backend/server.py"""
+import os, sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
+backend = os.path.join(os.path.dirname(__file__), 'backend')
+sys.path.insert(0, backend)
 
 from server import app, socketio, collector
 
 collector.iniciar()
 
-# Exporta socketio como aplicação WSGI para o gunicorn
+# Exporta o socketio como aplicação WSGI para o gunicorn
 application = socketio
 
 if __name__ == '__main__':

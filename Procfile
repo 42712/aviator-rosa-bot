@@ -1,1 +1,1 @@
-web: gunicorn -k eventlet -w 1 --bind 0.0.0.0:$PORT main:application
+web: gunicorn -k gevent -w 1 --bind 0.0.0.0:$PORT wsgi:application
