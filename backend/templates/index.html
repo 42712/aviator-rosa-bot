@@ -337,6 +337,7 @@
             <h1>✈️ PAINEL AVIATOR</h1>
         </div>
         <div class="header-status">
+            <span id="extensaoStatus" style="margin-right:15px;font-size:12px;">📱 Extensão: <span style="color:#666">—</span></span>
             <span class="status-dot" id="statusDot"></span>
             <span id="statusText">Conectando...</span>
         </div>
@@ -481,6 +482,18 @@
             }
             if (stats.total) {
                 document.getElementById('totalCatalogo').textContent = stats.total + ' velas';
+            }
+        });
+
+        evtSource.addEventListener('extensao_status', (e) => {
+            const st = JSON.parse(e.data);
+            const el = document.getElementById('extensaoStatus');
+            if (!el) return;
+            if (st.conectada) {
+                el.innerHTML = '📱 Extensão: <span style="color:#00e676">Conectada</span>';
+                el.title = 'Celular enviando dados em tempo real';
+            } else {
+                el.innerHTML = '📱 Extensão: <span style="color:#ff5252">Offline</span>';
             }
         });
 

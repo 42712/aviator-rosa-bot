@@ -22,13 +22,16 @@ class DataCollector:
         self._ultimo_valor = 1.00
 
     def iniciar(self):
-        """Inicia a coleta de dados"""
+        """Inicia a coleta de dados - modo híbrido"""
         self.running = True
-        if SIMULAR_DADOS:
-            self._thread = threading.Thread(target=self._simular_coleta, daemon=True)
-        else:
-            self._thread = threading.Thread(target=self._coletar_sorte_bet, daemon=True)
+        # Sempre inicia com simulados como fallback
+        self._thread = threading.Thread(target=self._simular_coleta, daemon=True)
         self._thread.start()
+
+        # Se for modo real, tenta conectar WebSocket também
+        if not SIMULAR_DADOS:
+            self._ws_thread = threading.Thread(target=self._coletar_sorte_bet, daemon=True)
+            self._ws_thread.start()
 
     def parar(self):
         self.running = False

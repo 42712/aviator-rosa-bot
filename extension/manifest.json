@@ -1,17 +1,34 @@
 {
-    "name": "Painel Aviator",
-    "version": "1.0.0",
-    "manifest_version": 2,
-    "description": "Painel Aviator - Acesse o painel direto no Kiwi Browser",
-    "permissions": [
-        "storage",
-        "https://*/"
-    ],
-    "browser_action": {
-        "default_title": "Painel Aviator",
-        "default_popup": "popup.html"
-    },
-    "icons": {
-        "128": "icon.png"
+  "manifest_version": 3,
+  "name": "Painel Aviator - Coletor",
+  "version": "1.0",
+  "description": "Coleta dados do Aviator em tempo real e envia para o painel",
+  "permissions": [
+    "storage",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "https://*.sortedabet.com/*",
+    "https://*.onrender.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.sortedabet.com/*",
+        "https://*.sorte da bet/*",
+        "https://*.bet/*",
+        "https://*.casino/*",
+        "<all_urls>"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start"
     }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "icons": {
+    "128": "icon.png"
+  }
 }

@@ -58,6 +58,7 @@ def stream_sse():
             yield f"event: penultima_rodada\ndata: {json.dumps(collector.penultima_rodada.to_dict())}\n\n"
         yield f"event: historico\ndata: {json.dumps(collector.get_ultimas(50))}\n\n"
         yield f"event: estatisticas\ndata: {json.dumps(collector.get_estatisticas())}\n\n"
+        yield f"event: extensao_status\ndata: {json.dumps({'conectada': EXTENSAO_CONECTADA and (time.time() - ultimo_heartbeat) < 60, 'total_rodadas': len(collector.historico)})}\n\n"
 
         while True:
             # Verifica novos eventos
@@ -79,6 +80,59 @@ def stream_sse():
             "Connection": "keep-alive"
         }
     )
+
+# ===== WEBHOOK - RECEBE DADOS DA EXTENSÃO =====
+ultimo_heartbeat = 0
+EXTENSAO_CONECTADA = False
+
+@app.route('/api/webhook', methods=['POST'])
+def api_webhook():
+    """Recebe dados da extensão do Kiwi Browser"""
+    global ultimo_heartbeat, EXTENSAO_CONECTADA
+    try:
+        dados = request.get_json()
+        if not dados:
+            return jsonify({"erro": "Dados inválidos"}), 400
+
+        # Heartbeat
+        if dados.get('heartbeat'):
+            EXTENSAO_CONECTADA = True
+            ultimo_heartbeat = time.time()
+            return jsonify({"ok": True, "status": "heartbeat_recebido"})
+
+        # Processa rodadas recebidas
+        rodadas = dados.get('rodadas', [])
+        fonte = dados.get('fonte', 'desconhecida')
+        EXTENSAO_CONECTADA = True
+        ultimo_heartbeat = time.time()
+
+        for r in rodadas:
+            rodada_id = r.get('rodada') or r.get('id') or r.get('round') or int(time.time() * 1000)
+            mult = r.get('mult') or r.get('multiplicador') or r.get('multiplier') or r.get('value')
+            if mult:
+                from models import Rodada
+                rodada_obj = Rodada(int(rodada_id) if isinstance(rodada_id, (int, float)) else hash(str(rodada_id)) % 10000000, float(mult))
+                collector._adicionar_rodada(rodada_obj)
+
+        return jsonify({
+            "ok": True,
+            "rodadas_recebidas": len(rodadas),
+            "status": "extensao_conectada"
+        })
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+@app.route('/api/webhook/status')
+def api_webhook_status():
+    """Status da conexão com a extensão"""
+    agora = time.time()
+    conectada = EXTENSAO_CONECTADA and (agora - ultimo_heartbeat) < 60
+    return jsonify({
+        "conectada": conectada,
+        "ultimo_heartbeat": ultimo_heartbeat,
+        "segundos_sem_sinal": int(agora - ultimo_heartbeat) if ultimo_heartbeat else 9999,
+        "total_rodadas": len(collector.historico)
+    })
 
 # ===== PÁGINAS PÚBLICAS =====
 @app.route('/')
