@@ -1,24 +1,22 @@
 {
   "manifest_version": 3,
   "name": "Painel Aviator - Coletor",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Coleta dados do Aviator em tempo real e envia para o painel",
   "permissions": [
-    "storage",
-    "webRequest"
+    "storage"
   ],
   "host_permissions": [
     "https://*.sortedabet.com/*",
     "https://*.onrender.com/*"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": [
-        "https://*.sortedabet.com/*",
-        "https://*.sorte da bet/*",
-        "https://*.bet/*",
-        "https://*.casino/*",
-        "<all_urls>"
+        "https://*.sortedabet.com/*"
       ],
       "js": ["content.js"],
       "run_at": "document_start"

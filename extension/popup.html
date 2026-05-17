@@ -7,108 +7,190 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-    font-family: 'Segoe UI', sans-serif;
-    width: 320px;
-    background: #0f1923;
-    color: #fff;
-    padding: 16px;
+  font-family: 'Segoe UI', sans-serif;
+  width: 320px;
+  background: #0f1923;
+  color: #fff;
+  padding: 16px;
 }
-h1 { font-size: 18px; margin-bottom: 12px; color: #00e676; }
+h1 { font-size: 18px; margin-bottom: 12px; color: #913EF8; }
 .status {
-    background: #1a2936;
-    border-radius: 12px;
-    padding: 12px;
-    margin-bottom: 12px;
+  background: #1a2936;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
 }
 .status-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 4px 0;
-    font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13px;
 }
 .label { color: #8899aa; }
 .conectado { color: #00e676; }
 .desconectado { color: #ff5252; }
-.btn {
-    width: 100%;
-    padding: 10px;
-    background: #2d7d46;
-    border: none;
-    border-radius: 8px;
-    color: #fff;
-    font-size: 14px;
-    cursor: pointer;
-    margin-top: 8px;
+.campo {
+  margin-bottom: 10px;
 }
-.btn:hover { background: #3a9e5a; }
-.info { font-size: 12px; color: #667788; margin-top: 10px; text-align: center; }
+.campo label {
+  display: block;
+  font-size: 11px;
+  color: #8899aa;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.campo input, .campo select {
+  width: 100%;
+  padding: 8px 10px;
+  background: #0f1923;
+  border: 1px solid #2a3a4a;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+}
+.campo input:focus, .campo select:focus {
+  border-color: #913EF8;
+}
+.btn {
+  width: 100%;
+  padding: 10px;
+  background: linear-gradient(135deg, #349CFF, #913EF8);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.btn:hover { opacity: 0.9; }
+.info {
+  font-size: 12px;
+  color: #667788;
+  margin-top: 10px;
+  text-align: center;
+}
+.salvo {
+  font-size: 11px;
+  color: #00e676;
+  text-align: center;
+  margin-top: 4px;
+  visibility: hidden;
+}
+.salvo.visivel { visibility: visible; }
 </style>
 </head>
 <body>
 <h1>✈️ Coletor Aviator</h1>
 
 <div class="status">
-    <div class="status-item">
-        <span class="label">Extensão</span>
-        <span id="statusExt" class="conectado">Ativa</span>
-    </div>
-    <div class="status-item">
-        <span class="label">Servidor</span>
-        <span id="statusServer" class="desconectado">Verificando...</span>
-    </div>
-    <div class="status-item">
-        <span class="label">Última vela</span>
-        <span id="ultimaVela">—</span>
-    </div>
-    <div class="status-item">
-        <span class="label">Velas enviadas</span>
-        <span id="totalVelas">0</span>
-    </div>
+  <div class="status-item">
+    <span class="label">Extensão</span>
+    <span id="statusExt" class="conectado">Ativa</span>
+  </div>
+  <div class="status-item">
+    <span class="label">Servidor</span>
+    <span id="statusServer" class="desconectado">Verificando...</span>
+  </div>
+  <div class="status-item">
+    <span class="label">Última vela</span>
+    <span id="ultimaVela">—</span>
+  </div>
+  <div class="status-item">
+    <span class="label">Velas enviadas</span>
+    <span id="totalVelas">0</span>
+  </div>
 </div>
 
-<button class="btn" id="btnTestar">Testar Conexão</button>
-<div class="info">Celular precisa estar na página do Aviator da Sorte da Bet</div>
+<div style="border-top:1px solid #2a3a4a;padding-top:12px;margin-bottom:8px;">
+  <div class="campo">
+    <label>Token / Slug do Cliente</label>
+    <input type="text" id="inputToken" placeholder="token-ou-slug-do-cliente">
+  </div>
+  <div class="campo">
+    <label>Aviator</label>
+    <select id="inputAviator">
+      <option value="1">Aviator 1</option>
+      <option value="2">Aviator 2</option>
+    </select>
+  </div>
+  <button class="btn" id="btnSalvar">💾 SALVAR CONFIG</button>
+  <div id="msgSalvo" class="salvo">Configuração salva!</div>
+</div>
+
+<button class="btn" id="btnTestar" style="background:#2d7d46;">🔌 Testar Conexão</button>
+<div class="info">Celular precisa estar na página do Aviator (sortedabet.com)</div>
 
 <script>
-const SERVER = "https://painel-aviator.onrender.com";
-let totalEnviadas = parseInt(localStorage.getItem('totalVelas') || '0');
-document.getElementById('totalVelas').textContent = totalEnviadas;
+document.addEventListener('DOMContentLoaded', () => {
+  // Carrega config salva
+  chrome.storage.sync.get(['token', 'aviator'], (cfg) => {
+    if (cfg.token) document.getElementById('inputToken').value = cfg.token;
+    if (cfg.aviator) document.getElementById('inputAviator').value = String(cfg.aviator);
+  });
 
-document.getElementById('btnTestar').onclick = () => {
-    fetch(SERVER + '/api/webhook/status')
-        .then(r => r.json())
-        .then(d => {
-            const el = document.getElementById('statusServer');
-            if (d.conectada) {
-                el.textContent = 'Conectado ✅';
-                el.className = 'conectado';
-            } else {
-                el.textContent = 'Aguardando...';
-                el.className = 'desconectado';
-            }
-            if (d.total_rodadas) {
-                document.getElementById('ultimaVela').textContent = d.total_rodadas + ' rodadas';
-            }
-        })
-        .catch(() => {
-            document.getElementById('statusServer').textContent = 'Offline ❌';
-            document.getElementById('statusServer').className = 'desconectado';
-        });
-};
+  // Salvar config
+  document.getElementById('btnSalvar').onclick = () => {
+    const token = document.getElementById('inputToken').value.trim();
+    const aviator = parseInt(document.getElementById('inputAviator').value);
+    chrome.storage.sync.set({ token, aviator }, () => {
+      const msg = document.getElementById('msgSalvo');
+      msg.classList.add('visivel');
+      setTimeout(() => msg.classList.remove('visivel'), 2000);
+    });
+  };
 
-// Auto-verificar a cada 5s
-setInterval(() => {
-    document.getElementById('btnTestar').click();
-}, 5000);
+  // Testar conexão
+  const testar = () => {
+    fetch('https://painel-aviator.onrender.com/api/webhook/status')
+      .then(r => r.json())
+      .then(d => {
+        const el = document.getElementById('statusServer');
+        if (d.conectada) {
+          el.textContent = 'Conectado ✅';
+          el.className = 'conectado';
+        } else {
+          el.textContent = 'Aguardando extensão...';
+          el.className = 'desconectado';
+        }
+        if (d.total_rodadas) {
+          document.getElementById('ultimaVela').textContent = d.total_rodadas + ' rodadas';
+        }
+      })
+      .catch(() => {
+        document.getElementById('statusServer').textContent = 'Offline ❌';
+        document.getElementById('statusServer').className = 'desconectado';
+      });
+  };
 
-// Escuta mensagens do content script
-chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.tipo === 'vela_enviada') {
-        totalEnviadas++;
-        localStorage.setItem('totalVelas', totalEnviadas.toString());
-        document.getElementById('totalVelas').textContent = totalEnviadas;
+  document.getElementById('btnTestar').onclick = testar;
+
+  // Atualiza status via background worker
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.tipo === 'statusAtualizado') {
+      if (msg.conectada) {
+        document.getElementById('statusServer').textContent = 'Coletando ✅';
+        document.getElementById('statusServer').className = 'conectado';
+        document.getElementById('statusExt').textContent = 'Ativa';
+        document.getElementById('statusExt').className = 'conectado';
+      }
+      if (msg.ultimaVela && msg.ultimaVela !== '—') {
+        document.getElementById('ultimaVela').textContent = msg.ultimaVela;
+      }
+      if (msg.totalEnviadas !== undefined) {
+        const total = parseInt(localStorage.getItem('totalVelas') || '0') + msg.totalEnviadas;
+        localStorage.setItem('totalVelas', String(total));
+        document.getElementById('totalVelas').textContent = total;
+      }
     }
+  });
+
+  // Auto-check servidor
+  setInterval(testar, 10000);
 });
 </script>
+
 </body>
 </html>
