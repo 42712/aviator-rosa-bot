@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Betou Coletor</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', sans-serif;
+  width: 320px;
+  background: #0f1923;
+  color: #fff;
+  padding: 16px;
+}
+h1 { font-size: 18px; margin-bottom: 12px; color: #00e676; }
+.status {
+  background: #1a2936;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.label { color: #8899aa; }
+.conectado { color: #00e676; }
+.desconectado { color: #ff5252; }
+.campo {
+  margin-bottom: 10px;
+}
+.campo label {
+  display: block;
+  font-size: 11px;
+  color: #8899aa;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.campo input {
+  width: 100%;
+  padding: 8px 10px;
+  background: #0f1923;
+  border: 1px solid #2a3a4a;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+}
+.campo input:focus {
+  border-color: #00e676;
+}
+.btn {
+  width: 100%;
+  padding: 10px;
+  background: linear-gradient(135deg, #00e676, #009688);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.btn:hover { opacity: 0.9; }
+.info {
+  font-size: 12px;
+  color: #667788;
+  margin-top: 10px;
+  text-align: center;
+}
+.salvo {
+  font-size: 11px;
+  color: #00e676;
+  text-align: center;
+  margin-top: 4px;
+  visibility: hidden;
+}
+.salvo.visivel { visibility: visible; }
+</style>
+</head>
+<body>
+<h1>Coletor Betou</h1>
+
+<div class="status">
+  <div class="status-item">
+    <span class="label">Conexão</span>
+    <span id="statusConexao" class="desconectado">Desconectado</span>
+  </div>
+  <div class="status-item">
+    <span class="label">Última vela</span>
+    <span id="ultimaVela">—</span>
+  </div>
+  <div class="status-item">
+    <span class="label">Total enviadas</span>
+    <span id="totalEnviadas">0</span>
+  </div>
+  <div class="status-item">
+    <span class="label">Abas Betou abertas</span>
+    <span id="abasAbertas">0</span>
+  </div>
+</div>
+
+<div class="campo">
+  <label>Token do cliente</label>
+  <input type="text" id="inputToken" placeholder="default">
+</div>
+
+<div class="info">
+  <strong>Mapeamento:</strong><br>
+  Betou /aviator → Painel Aviator 2<br>
+  Betou /aviator2 → Painel Aviator 1
+</div>
+
+<button class="btn" id="btnSalvar">Salvar Token</button>
+<div class="salvo" id="msgSalvo">Salvo!</div>
+
+<script>
+const inputToken = document.getElementById('inputToken');
+const btnSalvar = document.getElementById('btnSalvar');
+const msgSalvo = document.getElementById('msgSalvo');
+
+chrome.storage.sync.get(['token'], (cfg) => {
+  inputToken.value = cfg.token || '';
+});
+
+btnSalvar.addEventListener('click', () => {
+  chrome.storage.sync.set({ token: inputToken.value }, () => {
+    msgSalvo.style.visibility = 'visible';
+    setTimeout(() => { msgSalvo.style.visibility = 'hidden'; }, 2000);
+  });
+});
+
+function atualizarUI(status) {
+  document.getElementById('statusConexao').textContent = status.conectada ? 'Conectado' : 'Desconectado';
+  document.getElementById('statusConexao').className = status.conectada ? 'conectado' : 'desconectado';
+  document.getElementById('ultimaVela').textContent = status.ultimaVela || '—';
+  document.getElementById('totalEnviadas').textContent = status.totalEnviadas || 0;
+  document.getElementById('abasAbertas').textContent = status.abasAbertas || 0;
+}
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.tipo === 'statusAtualizado') atualizarUI(msg);
+});
+
+chrome.runtime.sendMessage({ tipo: 'getStatus' });
+</script>
+</body>
+</html>
