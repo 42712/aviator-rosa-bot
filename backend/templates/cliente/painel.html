@@ -540,12 +540,6 @@
             document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('ativo'));
             document.querySelector('.filtro-btn.' + f).classList.add('ativo');
             renderizarHistoricoFiltrado();
-            if (f !== 'todas') {
-                fetch('/api/' + aviatorAtivo + '/historico/' + f).then(r => r.json()).then(d => {
-                    if (aviatorAtivo === 1) todasVelas1 = d; else todasVelas2 = d;
-                    renderizarHistoricoFiltrado();
-                });
-            }
         }
 
         function renderizarTudo() {
