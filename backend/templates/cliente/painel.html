@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Painel Aviator</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -145,17 +144,6 @@
         .vela-card .soma { font-size: 12px; color: #aaa; }
         .vela-card .soma span { display: inline-block; background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 14px; }
         .vela-card.penultima { opacity: 0.7; transform: scale(0.95); }
-
-        /* Gráfico */
-        .chart-container {
-            background: #1a1a2e;
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 15px;
-            border: 1px solid rgba(255,255,255,0.05);
-            height: 300px;
-        }
-        .chart-container canvas { width: 100% !important; height: 100% !important; }
 
         /* Minutagem (substitui catálogo) */
         .minutagem-container {
@@ -303,7 +291,6 @@
 
         @media (max-width: 768px) {
             .ultimas-live { flex-direction: column; }
-            .chart-container { height: 220px; }
             .stats-bar { grid-template-columns: repeat(3, 1fr); gap: 5px; }
             .stat-card .numero { font-size: 14px; }
             .aviator-btn { font-size: 11px; padding: 8px 10px; }
@@ -372,16 +359,6 @@
             </div>
         </div>
 
-        <!-- Gráfico Aviator 1 -->
-        <div class="chart-container" id="chartContainer1">
-            <canvas id="aviatorChart1"></canvas>
-        </div>
-
-        <!-- Gráfico Aviator 2 -->
-        <div class="chart-container" id="chartContainer2" style="display:none;">
-            <canvas id="aviatorChart2"></canvas>
-        </div>
-
         <!-- Minutagem (substitui catálogo) -->
         <div class="minutagem-container">
             <div class="minutagem-header">
@@ -439,13 +416,10 @@
         let todasVelas2 = [];
         let filtroAtivo = 'todas';
         let aviatorAtivo = 1;
-        let chart1 = null;
-        let chart2 = null;
         let ultimoTimestamp1 = Date.now();
         let ultimoTimestamp2 = Date.now();
 
         function getVelas() { return aviatorAtivo === 1 ? todasVelas1 : todasVelas2; }
-        function getChart() { return aviatorAtivo === 1 ? chart1 : chart2; }
 
         function classificarCor(m) { if (m <= 1.99) return 'azul'; if (m <= 9.99) return 'roxa'; return 'rosa'; }
         function calcularSoma(m) { let s = 0; for (const c of m.toFixed(2)) { if (c >= '0' && c <= '9') s += parseInt(c); } return s; }
@@ -456,8 +430,6 @@
             aviatorAtivo = n;
             document.querySelectorAll('.aviator-btn').forEach(b => b.classList.remove('ativo'));
             document.querySelector('.aviator-btn[data-aviator="' + n + '"]').classList.add('ativo');
-            document.getElementById('chartContainer1').style.display = n === 1 ? 'block' : 'none';
-            document.getElementById('chartContainer2').style.display = n === 2 ? 'block' : 'none';
             renderizarTudo();
         }
 
@@ -482,7 +454,7 @@
                         else ultimoTimestamp2 = Date.now();
                         if (aviatorAtivo === num) {
                             atualizarVela(num, 'ultima', d);
-                            atualizarGrafico();
+                            renderizarTudo();
                             renderizarMinutagem(arr);
                             renderizarHistoricoFiltrado();
                             atualizarStats(arr);
@@ -586,7 +558,6 @@
                 atualizarVela(aviatorAtivo, 'ultima', velas[velas.length-1]);
                 if (velas.length >= 2) atualizarVela(aviatorAtivo, 'penultima', velas[velas.length-2]);
             }
-            atualizarGrafico();
         }
 
         // ===== MINUTAGEM =====
@@ -625,26 +596,6 @@
                 '<td style="color:#FF2D95">' + m.rosa + '</td></tr>'
             ).join('');
             document.getElementById('totalMinutagem').textContent = velas.length + ' velas';
-        }
-
-        // ===== GRÁFICO =====
-        function criarGrafico(canvasId) {
-            const ctx = document.getElementById(canvasId).getContext('2d');
-            return new Chart(ctx, {
-                type: 'line',
-                data: { labels: [], datasets: [{ label: 'Multiplicador', data: [], borderColor: '#913EF8', backgroundColor: 'rgba(145,62,248,0.1)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 3 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#666', maxTicksLimit: 10, font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.03)' } }, y: { ticks: { color: '#666' }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
-            });
-        }
-
-        function atualizarGrafico() {
-            const chart = getChart();
-            if (!chart) return;
-            const u30 = getVelas().slice(-30);
-            chart.data.labels = u30.map(v => v.rodada.toString().slice(-4));
-            chart.data.datasets[0].data = u30.map(v => v.multiplicador);
-            chart.data.datasets[0].pointBackgroundColor = u30.map(v => CORES[classificarCor(v.multiplicador)].hex);
-            chart.update('none');
         }
 
         // ===== TIMER =====
@@ -687,8 +638,6 @@
 
         // ===== INIT =====
         document.addEventListener('DOMContentLoaded', () => {
-            chart1 = criarGrafico('aviatorChart1');
-            chart2 = criarGrafico('aviatorChart2');
             configurarSSE();
             iniciarTimer();
             setTimeout(() => {
