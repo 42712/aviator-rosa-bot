@@ -43,3 +43,41 @@ Para conectar na Sorte da Bet em tempo real:
 4. Clique em "Carregar sem compactação"
 5. Selecione a pasta `extension/`
 6. Configure a URL do seu servidor Render
+
+
+
+
+
+
+
+
+
+7.  Vamos nessa! Passo a passo pra configurar no Kiwi:
+
+  1. Baixar a extensão no celular
+
+  Pelo GitHub já está lá. No celular:
+  - Abra https://github.com/42712/Painel-aviator                                                                                                                          - Clique em Code → Download ZIP
+  - Extraia a pasta extension-betou/ numa pasta fácil de achar (ex: Downloads/extension-betou/)                                                                         
+  2. Carregar no Kiwi
+
+  - Abra o Kiwi Browser
+  - Digite na URL: chrome://extensions
+  - Ative Modo desenvolvedor (cantinho superior direito)
+  - Clique em Carregar sem compactação
+  - Selecione a pasta extension-betou/
+
+  3. Abrir as abas
+
+  Depois que a extensão estiver carregada:
+  - Abra https://betou.bet.br/games/spribe/aviator
+  - Abra https://betou.bet.br/games/spribe/aviator2
+  - Faça login na Betou nas duas
+
+  4. Verificar
+
+  Clique no ícone da extensão (quebra-cabeça → extensão Betou) e veja se aparece "Conectado" e velas sendo enviadas.
+
+  ---
+  Vai fazer isso agora? Se tiver dúvida em alguma etapa me avisa que te ajudo. Depois que testar e confirmar que está capturando, aí a gente sobe pro Render e libera
+  pros outros.
