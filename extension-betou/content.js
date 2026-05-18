@@ -1,4 +1,4 @@
-// ===== Content Script - Betou Coletor (baseado na extensao que funciona) =====
+// ===== Content Script - Betou Coletor v5.0 (WS + SockJS + DOM) =====
 const SERVER_URL = "https://painel-aviator.onrender.com";
 const INTERVALO_ENVIO = 3;
 const DEBOUNCE_DOM = 800;
@@ -10,6 +10,8 @@ let ultimasVelas = [];
 let ultimoEnvio = 0;
 let rodadasVistas = new Set();
 let config = { token: 'default', aviator: 1 };
+let lastMultiplier = null;
+let lastRound = null;
 
 // Carrega config do storage
 chrome.storage.sync.get(['token', 'aviator'], (cfg) => {
@@ -25,24 +27,88 @@ function getPainel() {
   } catch(e) { return config.aviator || 1; }
 }
 
-// ===== 1. CAPTURA VIA WEBSOCKET (funciona no iframe spribegaming) =====
+function getTimeNow() {
+  return new Date().toLocaleTimeString('pt-BR');
+}
+
+// ===== 1. CAPTURA VIA WEBSOCKET (Proxy - funciona c/ SockJS/STOMP) =====
 const NativeWS = window.WebSocket;
 
 window.WebSocket = new Proxy(NativeWS, {
   construct(target, args) {
     const ws = new target(...args);
-    ws.addEventListener('message', (event) => {
+    ws.addEventListener('message', async (event) => {
       try {
-        const data = JSON.parse(event.data);
-        const rodada = extrairRodada(data);
-        if (rodada) adicionarVela(rodada);
+        let data = event.data;
+
+        // Converte Blob para texto se necessario (SockJS)
+        if (data instanceof Blob) {
+          data = await data.text();
+        }
+
+        if (typeof data !== 'string') return;
+
+        // SockJS: mensagens STOMP encapsuladas em array: a["...","..."]
+        if (data.startsWith('a[')) {
+          try {
+            const arr = JSON.parse(data);
+            if (Array.isArray(arr)) {
+              arr.forEach(msg => {
+                if (typeof msg === 'string') {
+                  processarFrameSTOMP(msg);
+                }
+              });
+            }
+          } catch(e) {}
+          return;
+        }
+
+        // JSON direto
+        const json = JSON.parse(data);
+        const rodada = extrairRodada(json);
+        if (rodada) {
+          console.log(`📡 WS: rodada=${rodada.rodada} mult=${rodada.mult?.toFixed(2)}x`);
+          adicionarVela(rodada);
+        }
       } catch (e) { /* ignorado */ }
     });
     return ws;
   }
 });
 
-// ===== 2. CAPTURA VIA DOM (fallback - funciona na pagina principal Betou) =====
+// ===== 1.1 Parsing de frames STOMP/SockJS =====
+function processarFrameSTOMP(msg) {
+  // Formato STOMP: "MESSAGE\ndest:...\n...\n\n{\"body\"}\0"
+  try {
+    // Tenta JSON direto primeiro
+    if (msg.startsWith('{') || msg.startsWith('[')) {
+      const clean = msg.replace(/\0+$/, ''); // remove null chars
+      const json = JSON.parse(clean);
+      const rodada = extrairRodada(json);
+      if (rodada) {
+        console.log(`📦 STOMP: rodada=${rodada.rodada} mult=${rodada.mult?.toFixed(2)}x`);
+        adicionarVela(rodada);
+      }
+      return;
+    }
+
+    // STOMP frame: procura JSON no body (apos \n\n)
+    const bodyMatch = msg.match(/\n\n(.+)/s);
+    if (bodyMatch) {
+      let raw = bodyMatch[1].replace(/\0+$/, '').trim();
+      if (raw.startsWith('{') || raw.startsWith('[')) {
+        const json = JSON.parse(raw);
+        const rodada = extrairRodada(json);
+        if (rodada) {
+          console.log(`📦 STOMP: rodada=${rodada.rodada} mult=${rodada.mult?.toFixed(2)}x`);
+          adicionarVela(rodada);
+        }
+      }
+    }
+  } catch(e) {}
+}
+
+// ===== 2. CAPTURA VIA DOM (fallback) =====
 let timeoutDOM = null;
 let ultimoValorDOM = null;
 let ultimaRodadaDOM = null;
@@ -52,7 +118,7 @@ const observer = new MutationObserver(() => {
   timeoutDOM = setTimeout(() => {
     timeoutDOM = null;
 
-    // Tenta capturar o numero da rodada
+    // Captura rodada atual
     let rodadaAtual = null;
     const todosEl = document.querySelectorAll('span, div, h1, h2, h3, p, label, b, strong');
     for (const el of todosEl) {
@@ -64,7 +130,7 @@ const observer = new MutationObserver(() => {
       if (mR) { rodadaAtual = mR[1]; break; }
     }
 
-    // Tenta capturar o multiplicador
+    // Captura multiplicador
     const elementos = document.querySelectorAll(
       '[class*="multiplicador"], [class*="multiplier"], ' +
       '[class*="round"], [class*="rodada"], ' +
@@ -75,25 +141,25 @@ const observer = new MutationObserver(() => {
       const texto = el.textContent.trim();
       const mult = parseFloat(texto.replace('x', '').replace(',', '.'));
       if (mult && mult > 0 && mult < 100000) {
-        // Se mudou a rodada, reseta o tracking
         if (rodadaAtual && rodadaAtual !== ultimaRodadaDOM) {
           ultimoValorDOM = null;
           ultimaRodadaDOM = rodadaAtual;
         }
-        // So envia se o valor mudou (evita duplicatas do mesmo DOM)
         if (mult === ultimoValorDOM) return;
         ultimoValorDOM = mult;
+        lastMultiplier = mult;
+        if (rodadaAtual) lastRound = rodadaAtual;
 
         const agora = Date.now();
         const key = rodadaAtual ? `dom_${rodadaAtual}_${mult.toFixed(2)}` : `dom_${Math.floor(agora / 5000)}_${mult.toFixed(2)}`;
         if (rodadasVistas.has(key)) return;
         rodadasVistas.add(key);
+        console.log(`🟣 DOM: ${mult.toFixed(2)}x rodada=${rodadaAtual || '?'}`);
         adicionarVela({
           rodada: rodadaAtual ? parseInt(rodadaAtual) : undefined,
           multiplicador: mult,
-          timestamp: new Date().toLocaleTimeString('pt-BR'),
-          origem: 'dom',
-          capturado_em: agora
+          timestamp: getTimeNow(),
+          origem: 'dom'
         });
       }
     });
@@ -112,37 +178,43 @@ if (document.body) {
 function extrairRodada(data) {
   if (!data || typeof data !== 'object') return null;
   // Formato 1: { round: 123, multiplier: 1.45 }
-  if (data.round && data.multiplier) {
-    return { rodada: data.round, mult: data.multiplier };
+  if (data.round && data.multiplier !== undefined) {
+    return { rodada: data.round, mult: parseFloat(data.multiplier) };
   }
   // Formato 2: { rodada: 123, mult: 1.45 }
-  if (data.rodada && data.mult) {
-    return { rodada: data.rodada, mult: data.mult };
+  if (data.rodada && data.mult !== undefined) {
+    return { rodada: data.rodada, mult: parseFloat(data.mult) };
   }
-  // Formato 3: { id: 123, value: 1.45 }
-  if (data.id && data.value) {
-    return { rodada: data.id, mult: data.value };
+  // Formato 3: { roundId: 123, multiplier: 1.45 }
+  if (data.roundId && data.multiplier !== undefined) {
+    return { rodada: data.roundId, mult: parseFloat(data.multiplier) };
   }
-  // Formato 4: { r: 123, m: 1.45 }
-  if (data.r && data.m) {
-    return { rodada: data.r, mult: data.m };
+  // Formato 4: { id: 123, value: 1.45 }
+  if (data.id && data.value !== undefined) {
+    return { rodada: data.id, mult: parseFloat(data.value) };
   }
-  // Formato 5: { rodada: 123, multiplicador: 1.45 } (formato do backend)
-  if (data.rodada && data.multiplicador) {
-    return { rodada: data.rodada, mult: data.multiplicador };
+  // Formato 5: { r: 123, m: 1.45 }
+  if (data.r && data.m !== undefined) {
+    return { rodada: data.r, mult: parseFloat(data.m) };
   }
-  // Formato 6: array
+  // Formato 6: { rodada: 123, multiplicador: 1.45 }
+  if (data.rodada && data.multiplicador !== undefined) {
+    return { rodada: data.rodada, mult: parseFloat(data.multiplicador) };
+  }
+  // Formato 7: array
   if (Array.isArray(data)) {
     return extrairRodada(data[0]);
   }
-  // Formato 7: { data: { ... } }
-  if (data.data) {
+  // Formato 8: { data: { ... } }
+  if (data.data && typeof data.data === 'object') {
     return extrairRodada(data.data);
   }
-  // Formato 8: { payload: { ... } } ou { result: { ... } } ou { args: { ... } }
+  // Formato 9: { payload: { ... } } / { result: { ... } } / { args: { ... } }
   if (data.payload) return extrairRodada(data.payload);
   if (data.result) return extrairRodada(data.result);
   if (data.args) return extrairRodada(data.args);
+  // Formato 10: { body: { ... } } (STOMP body)
+  if (data.body) return extrairRodada(data.body);
 
   return null;
 }
@@ -151,11 +223,15 @@ function adicionarVela(rodada) {
   const id = rodada.rodada || rodada.capturado_em || Date.now();
   if (rodadasVistas.has(id)) return;
   rodadasVistas.add(id);
-  if (rodadasVistas.size > 1000) {
-    rodadasVistas = new Set([...rodadasVistas].slice(-500));
+  if (rodadasVistas.size > 2000) {
+    rodadasVistas = new Set([...rodadasVistas].slice(-1000));
   }
+
+  if (rodada.rodada) lastRound = rodada.rodada;
+  if (rodada.mult || rodada.multiplicador) lastMultiplier = rodada.mult || rodada.multiplicador;
+
   ultimasVelas.push({ ...rodada, capturado_em: Date.now() });
-  if (ultimasVelas.length > 20) ultimasVelas = ultimasVelas.slice(-20);
+  if (ultimasVelas.length > 30) ultimasVelas = ultimasVelas.slice(-30);
   enviarLote();
 }
 
@@ -167,11 +243,10 @@ function enviarLote() {
   const lote = [...ultimasVelas];
   ultimasVelas = [];
 
-  // Mapeia os campos para o formato que o backend espera
   const rodadas = lote.map(v => ({
     rodada: v.rodada || 0,
     multiplicador: v.mult || v.multiplicador || 0,
-    timestamp: v.timestamp || new Date().toLocaleTimeString('pt-BR'),
+    timestamp: v.timestamp || getTimeNow(),
     origem: v.origem || 'extensao'
   }));
 
@@ -195,7 +270,6 @@ function enviarLote() {
       totalEnviadas: lote.length
     }).catch(() => {});
   }).catch(() => {
-    // Re-coloca na fila em caso de erro
     ultimasVelas.unshift(...lote);
     if (ultimasVelas.length > 50) ultimasVelas = ultimasVelas.slice(-50);
   });
@@ -218,18 +292,41 @@ setInterval(() => {
   }).catch(() => {});
 }, 30000);
 
-// Envio periodico forçado a cada 5s (garante que nada fique preso)
+// Envio forçado a cada 5s
 setInterval(() => {
   if (ultimasVelas.length > 0) {
-    ultimoEnvio = 0; // reseta pra forçar envio
+    ultimoEnvio = 0;
     enviarLote();
   }
 }, 5000);
 
-// Anti-throttle: mantem o service worker acordado
+// Polling DOM extra a cada 1s (fallback pesado)
+setInterval(() => {
+  try {
+    const payouts = document.querySelectorAll('.payout');
+    if (payouts.length) {
+      const txt = payouts[0].innerText.trim();
+      const mult = parseFloat(txt.replace('x', '').replace(',', '.'));
+      if (!isNaN(mult) && mult > 0 && mult < 100000 && mult !== lastMultiplier) {
+        lastMultiplier = mult;
+        const key = `dom_payout_${mult.toFixed(2)}_${Date.now()}`;
+        if (rodadasVistas.has(key)) return;
+        rodadasVistas.add(key);
+        console.log(`🟣 DOM payout: ${mult.toFixed(2)}x`);
+        adicionarVela({
+          multiplicador: mult,
+          timestamp: getTimeNow(),
+          origem: 'dom_payout'
+        });
+      }
+    }
+  } catch(e) {}
+}, 1000);
+
+// Anti-throttle
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 setInterval(() => {
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }, 10000);
 
-console.log(`[Betou Coletor] Ativo | ${location.hostname} | Painel ${getPainel()}`);
+console.log(`[Betou v5.0] Ativo | ${location.hostname} | Painel ${getPainel()}`);

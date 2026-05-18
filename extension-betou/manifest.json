@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Betou Coletor",
-  "version": "1.1",
-  "description": "Coleta rodadas do Aviator Betou e envia para o painel",
+  "version": "5.0",
+  "description": "Captura velas, rodada e horario do Aviator em tempo real via WebSocket + DOM",
 
   "permissions": [
     "storage"

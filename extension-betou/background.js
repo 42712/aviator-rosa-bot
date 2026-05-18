@@ -34,8 +34,47 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     return true;
   }
 
+  // Megatron compat: AVIATOR_DATA do content script
+  if (msg.type === "AVIATOR_DATA" && msg.data) {
+    console.log("[Betou] AVIATOR_DATA received:", msg.data);
+    fetch("https://painel-aviator.onrender.com/api/webhook", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fonte: "extensao_betou",
+        token: "default",
+        aviator: msg.data.aviator || 1,
+        rodadas: [{
+          rodada: msg.data.rodada || msg.data.round || 0,
+          multiplicador: msg.data.mult || msg.data.multiplicador || msg.data.multiplier || msg.data.vela || 0,
+          timestamp: msg.data.horario || msg.data.timestamp || new Date().toLocaleTimeString("pt-BR"),
+          origem: "megatron"
+        }]
+      })
+    }).then(() => {
+      estado.totalEnviadas++;
+      estado.conectada = true;
+      chrome.runtime.sendMessage({ tipo: 'statusAtualizado', ...estado }).catch(() => {});
+    }).catch(() => {});
+    return false;
+  }
+
   return false;
 });
+
+// Heartbeat periodico
+setInterval(() => {
+  fetch("https://painel-aviator.onrender.com/api/webhook", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      heartbeat: true,
+      token: "default",
+      aviator: 0,
+      timestamp: new Date().toISOString()
+    })
+  }).catch(() => {});
+}, 60000);
 
 // Inicializa
 chrome.runtime.sendMessage({
@@ -46,4 +85,4 @@ chrome.runtime.sendMessage({
   abasAbertas: 0
 }).catch(() => {});
 
-console.log('[Betou] Background v1.1');
+console.log('[Betou] Background v5.0');
