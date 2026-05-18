@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Betou Coletor",
-  "version": "5.0",
+  "version": "6.2",
   "description": "Captura velas, rodada e horario do Aviator em tempo real via WebSocket + DOM",
 
   "permissions": [
@@ -29,6 +29,11 @@
       "run_at": "document_start"
     }
   ],
+
+  "web_accessible_resources": [{
+    "resources": ["main.js"],
+    "matches": ["https://*.betou.bet.br/*", "https://*.spribegaming.com/*"]
+  }],
 
   "action": {
     "default_popup": "popup.html",

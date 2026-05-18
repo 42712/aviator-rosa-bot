@@ -1,16 +1,15 @@
-// ===== Content Script - Betou Coletor v6.1 =====
+// ===== Content Script - Betou Coletor v6.2 (CSP-safe) =====
 const SERVER_URL = "https://painel-aviator.onrender.com";
 const INTERVALO_ENVIO = 3;
 
-const isSpribe = location.hostname.includes('spribegaming');
 const isBetou = location.hostname.includes('betou');
+const isSpribe = location.hostname.includes('spribegaming');
 
 let ultimasVelas = [];
 let ultimoEnvio = Date.now();
 let rodadasVistas = new Set();
 let config = { token: 'default', aviator: 1 };
 let ultimoMult = null;
-let ultimaRodadaLida = null;
 
 chrome.storage.sync.get(['token', 'aviator'], function(cfg) {
   if (cfg.token) config.token = cfg.token;
@@ -29,12 +28,19 @@ function getTimeNow() {
 }
 
 // ===================================================================
-// INJETA SCRIPT NO MAIN WORLD (WebSocket REAL do jogo)
+// INJETA main.js NO MAIN WORLD (via src, burla CSP)
 // ===================================================================
-var injectScript = document.createElement('script');
-injectScript.textContent = '(function(){if(window.__BETOU_WS)return;window.__BETOU_WS=true;var W=window.WebSocket;window.WebSocket=new Proxy(W,{construct:function(t,a){var w=new t(...a);w.addEventListener("message",async function(e){try{var d=e.data;if(d instanceof Blob)d=await d.text();if(typeof d==="string"&&d.length>0){window.postMessage({type:"__BETOU_WS",data:d},"*")}}catch(e){}});return w}});console.log("[Betou] injetado")})();';
-document.documentElement.appendChild(injectScript);
-injectScript.remove();
+function injectMainWorld() {
+  try {
+    var s = document.createElement('script');
+    s.src = chrome.runtime.getURL('main.js');
+    s.onload = function() { s.remove(); };
+    document.documentElement.appendChild(s);
+  } catch(e) {
+    console.log('[Betou] Erro injecao:', e);
+  }
+}
+injectMainWorld();
 
 // ===== RECEBE DADOS DO MAIN WORLD =====
 window.addEventListener('message', function(event) {
@@ -80,22 +86,19 @@ function processarMsg(msg) {
 }
 
 // ===================================================================
-// DOM CAPTURE (seletores exatos que funcionam no Betou)
+// DOM CAPTURE - seletores confirmados
 // ===================================================================
 function capturarDOM() {
   try {
-    // Multiplicador
     var elMult = document.querySelector('.bubble-multiplier');
     if (!elMult) return;
     var txt = elMult.innerText.trim();
     var mult = parseFloat(txt.replace('x', '').replace(',', '.'));
     if (isNaN(mult) || mult < 1 || mult > 100000) return;
 
-    // Horario
     var elTime = document.querySelector('.header__info-time');
     var horario = elTime ? elTime.innerText.trim() : getTimeNow();
 
-    // Rodada
     var elRodada = document.querySelector('span.text-uppercase');
     var rodadaNum = null;
     if (elRodada) {
@@ -105,13 +108,12 @@ function capturarDOM() {
 
     if (mult !== ultimoMult) {
       ultimoMult = mult;
-      if (rodadaNum) ultimaRodadaLida = rodadaNum;
       var key = 'dom_' + mult.toFixed(2) + '_' + (rodadaNum || Date.now());
       if (rodadasVistas.has(key)) return;
       rodadasVistas.add(key);
       console.log('[Betou] DOM:', mult.toFixed(2)+'x', horario, rodadaNum ? '#'+rodadaNum : '');
       addVela({
-        rodada: rodadaNum ? parseInt(rodadaNum) : undefined,
+        rodada: rodadaNum ? parseInt(rodadaNum) : null,
         multiplicador: mult,
         timestamp: horario,
         origem: 'dom'
@@ -120,7 +122,6 @@ function capturarDOM() {
   } catch(e) {}
 }
 
-// ===== .payout fallback =====
 function capturarPayout() {
   try {
     var els = document.querySelectorAll('.payout');
@@ -129,7 +130,7 @@ function capturarPayout() {
     var mult = parseFloat(txt.replace('x', '').replace(',', '.'));
     if (isNaN(mult) || mult < 1 || mult > 100000 || mult === ultimoMult) return;
     ultimoMult = mult;
-    var key = 'payout_' + mult.toFixed(2) + '_' + Date.now();
+    var key = 'payout_' + mult.toFixed(2);
     if (rodadasVistas.has(key)) return;
     rodadasVistas.add(key);
     console.log('[Betou] payout:', mult.toFixed(2)+'x');
@@ -137,14 +138,11 @@ function capturarPayout() {
   } catch(e) {}
 }
 
-// ===== MutationObserver (leve, so nos seletores certos) =====
+// MutationObserver
 var obsTimeout = null;
 var observer = new MutationObserver(function() {
   if (obsTimeout) return;
-  obsTimeout = setTimeout(function() {
-    obsTimeout = null;
-    capturarDOM();
-  }, 500);
+  obsTimeout = setTimeout(function() { obsTimeout = null; capturarDOM(); }, 500);
 });
 
 if (document.body) {
@@ -155,12 +153,11 @@ if (document.body) {
   });
 }
 
-// Timers
 setInterval(capturarDOM, 800);
 setInterval(capturarPayout, 500);
 
 // ===================================================================
-// EXTRAIR RODADA DE JSON
+// EXTRAIR
 // ===================================================================
 function extrair(data) {
   if (!data || typeof data !== 'object') return null;
@@ -184,7 +181,7 @@ function extrair(data) {
 // ENVIO
 // ===================================================================
 function addVela(rodada) {
-  var id = rodada.rodada || rodada.r || rodada.capturado_em || Date.now();
+  var id = rodada.rodada || rodada.r || Date.now();
   if (rodadasVistas.has(id)) return;
   rodadasVistas.add(id);
   if (rodadasVistas.size > 2000) rodadasVistas = new Set([...rodadasVistas].slice(-1000));
@@ -207,15 +204,6 @@ function enviar() {
   var lote = ultimasVelas.slice();
   ultimasVelas = [];
 
-  var rodadas = lote.map(function(v) {
-    return {
-      rodada: v.rodada || 0,
-      multiplicador: v.multiplicador || 0,
-      timestamp: v.timestamp || getTimeNow(),
-      origem: v.origem || 'extensao'
-    };
-  });
-
   fetch(SERVER_URL + '/api/webhook', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -223,11 +211,15 @@ function enviar() {
       fonte: 'extensao_betou',
       token: config.token,
       aviator: getPainel(),
-      rodadas: rodadas,
+      rodadas: lote,
       timestamp: new Date().toISOString()
     })
   }).then(function() {
-    chrome.runtime.sendMessage({ tipo: 'status', conectada: true, ultimaVela: lote[lote.length-1].multiplicador.toFixed(2) + 'x', totalEnviadas: lote.length }).catch(function(){});
+    chrome.runtime.sendMessage({
+      tipo: 'status', conectada: true,
+      ultimaVela: lote[lote.length-1].multiplicador.toFixed(2) + 'x',
+      totalEnviadas: lote.length
+    }).catch(function(){});
   }).catch(function() {
     ultimasVelas = lote.concat(ultimasVelas);
     if (ultimasVelas.length > 50) ultimasVelas = ultimasVelas.slice(-50);
@@ -237,23 +229,23 @@ function enviar() {
 // Heartbeat
 setInterval(function() {
   fetch(SERVER_URL + '/api/webhook', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fonte: 'extensao_betou', token: config.token, aviator: getPainel(), heartbeat: true, timestamp: new Date().toISOString() })
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      fonte: 'extensao_betou', token: config.token,
+      aviator: getPainel(), heartbeat: true, timestamp: new Date().toISOString()
+    })
   }).then(function() {
     chrome.runtime.sendMessage({ tipo: 'status', conectada: true }).catch(function(){});
   }).catch(function(){});
 }, 30000);
 
-// Envio forcado
 setInterval(function() {
   if (ultimasVelas.length > 0) { ultimoEnvio = 0; enviar(); }
 }, 5000);
 
-// Anti-throttle
 try {
   var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   setInterval(function() { if (audioCtx.state === 'suspended') audioCtx.resume(); }, 10000);
 } catch(e) {}
 
-console.log('[Betou v6.1] Ativo |', location.hostname, '| Painel', getPainel());
+console.log('[Betou v6.2] Ativo |', location.hostname, '| Painel', getPainel());
