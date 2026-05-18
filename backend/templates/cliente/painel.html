@@ -521,7 +521,7 @@
             document.getElementById('historicoGrid').innerHTML = v.reverse().map(v => {
                 const c = classificarCor(v.multiplicador);
                 const s = v.soma || calcularSoma(v.multiplicador);
-                const h = v.timestamp ? v.timestamp.substring(0, 5) : '--:--';
+                const h = v.timestamp ? v.timestamp.substring(0, 8) : '--:--:--';
                 return '<div class="vela-historico" style="border-color:' + CORES[c].hex + '40;" onclick="selecionarVela(this,\'' + c + '\')">' +
                     '<span class="mult-h" style="color:' + CORES[c].hex + '">' + v.exibicao + '</span>' +
                     '<span class="rodada-h">#' + v.rodada + '</span>' +

@@ -10,12 +10,19 @@
 
   function log(...args) { if (LOG) console.log('[Betou v4]', ...args); }
 
-  let lastValue = null;
-  let lastRound = null;
-  let lastSentRound = null;
-  let lastSentValue = null;
+  // Estado rastreamento de rodadas
+  let lastRoundId = null;
+  let currentMaxValue = null;
+  let sentRounds = new Set();
   let historicoCapturado = new Set();
   let configToken = 'default';
+
+  function limitSentRounds() {
+    if (sentRounds.size > 500) {
+      const arr = [...sentRounds];
+      sentRounds = new Set(arr.slice(-250));
+    }
+  }
 
   // Carrega token do storage
   try {
@@ -193,47 +200,50 @@
   async function capture() {
     const found = encontrarElementoValor();
     if (!found) return;
-
     const { el, origem } = found;
     const value = extrairValor(el, origem);
     if (!value) return;
 
-    const rgb = extractRgb(el);
-    const round = await extractRound() || lastRound;
-    if (round) lastRound = round;
+    const round = await extractRound();
+    if (!round) return;  // só envia quando tem número da rodada
 
-    // Dedup: mesma rodada E mesmo valor = já foi enviado
-    if (value === lastValue && round && round === lastSentRound) return;
-    if (!round && value === lastValue) return;
-    lastValue = value;
-    lastSentRound = round;
+    // Detecta mudança de rodada: se round mudou, a anterior terminou
+    if (lastRoundId && round !== lastRoundId && currentMaxValue !== null) {
+      // Envia o VALOR FINAL da rodada que terminou
+      const rodadaNum = parseInt(lastRoundId);
+      if (rodadaNum && !sentRounds.has(rodadaNum)) {
+        sentRounds.add(rodadaNum);
+        limitSentRounds();
+        rodadasEnviadas++;
+        const timestampReal = extractTimestamp();
+        log(`✅ #${lastRoundId} ${currentMaxValue.toFixed(2)}x hora=${timestampReal}`);
 
-    const rodadaNum = parseInt(round) || Math.floor(Date.now() / 1000);
-    rodadasEnviadas++;
-    const timestampReal = extractTimestamp();
-    log(`✈ ${value.toFixed(2)}x #${rodadaNum} hora=${timestampReal} rgb=${rgb} origem=${origem}`);
+        fetch(`${SERVER_URL}/api/webhook`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token: configToken,
+            aviator: getAviatorPainel(),
+            rodadas: [{
+              rodada: rodadaNum,
+              multiplicador: currentMaxValue,
+              timestamp: timestampReal,
+              origem: origem,
+              cor: null
+            }]
+          }),
+          keepalive: true
+        })
+        .then(r => r.json().then(d => log('OK:', d)))
+        .catch(e => log('Falha:', e.message));
+      }
+    }
 
-    // Envia para o servidor
-    fetch(`${SERVER_URL}/api/webhook`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        token: configToken,
-        aviator: getAviatorPainel(),
-        rodadas: [{
-          rodada: rodadaNum,
-          multiplicador: value,
-          timestamp: timestampReal,
-          origem: origem,
-          cor: rgb
-        }]
-      }),
-      keepalive: true
-    })
-    .then(r => r.json().then(d => log('Enviado! Total:', d)))
-    .catch(e => log('Falha:', e.message));
+    // Atualiza estado
+    lastRoundId = round;
+    currentMaxValue = value;
 
-    // Notifica background
+    // Notifica background (status)
     try {
       chrome.runtime.sendMessage({
         tipo: 'status',
@@ -244,85 +254,29 @@
     } catch(_) {}
   }
 
-  // ===== WEBSOCKET INTERCEPT =====
-  try {
-    const NativeWS = window.WebSocket;
-    window.WebSocket = new Proxy(NativeWS, {
-      construct(target, args) {
-        const ws = new target(...args);
-        const url = args[0] || '';
-        // Intercepta LiveChat e qualquer WS que contenha dados de jogo
-        if (url.includes('livechatinc.com') || url.includes('spribe')) {
-          log('WS interceptado:', url.substring(0, 100));
-          ws.addEventListener('message', (event) => {
-            try {
-              const data = JSON.parse(event.data);
-              // Procura dados de rodada na mensagem
-              if (data && typeof data === 'object') {
-                // Verifica campos que podem conter multiplicador
-                const payload = data.payload || data;
-                if (payload.multiplier || payload.mult) {
-                  const mult = parseFloat(payload.multiplier || payload.mult);
-                  const rodId = payload.round || payload.rodada || payload.id || payload.r;
-                  if (mult && mult > 0 && mult < 100000) {
-                    log('WS mult:', mult, 'rod:', rodId);
-                    lastValue = mult;
-                    if (rodId) lastRound = String(rodId);
-                    rodadasEnviadas++;
-                    const rgb = null;
-                    const wsTimestamp = extractTimestamp();
-                    fetch(`${SERVER_URL}/api/webhook`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        token: configToken,
-                        aviator: getAviatorPainel(),
-                        rodadas: [{
-                          rodada: rodId || Math.floor(Date.now() / 1000),
-                          multiplicador: mult,
-                          timestamp: wsTimestamp,
-                          origem: 'websocket',
-                          cor: rgb
-                        }]
-                      }),
-                      keepalive: true
-                    }).catch(() => {});
-                  }
-                }
-              }
-            } catch(e) {}
-          });
-        }
-        return ws;
-      }
-    });
-    log('WS intercept ativo');
-  } catch(e) {
-    log('WS intercept erro:', e.message);
-  }
-
-  // ===== CAPTURA DE HISTÓRICO (velas já finalizadas) =====
+  // ===== CAPTURA DE HISTÓRICO (velas finalizadas no dropdown) =====
   function capturarHistorico() {
     try {
-      // Busca todos os .payout dentro do histórico do jogo
       const payouts = document.querySelectorAll('.payouts-wrapper .payouts-block .payout, app-stats-widget .payout');
       if (!payouts.length) return;
 
-      const roundAtual = lastRound || '';
       payouts.forEach((el, idx) => {
         const raw = (el.innerText || el.textContent || "").trim();
         const value = parseFloat(raw.replace(/x/gi,"").replace(",",".").trim());
         if (!value || isNaN(value) || value < 1 || value > 100000) return;
 
-        // Chave única: posição + valor + rodada atual
-        const chave = idx + '_' + value.toFixed(2) + '_' + roundAtual;
+        const titulo = document.querySelector('app-stats-dropdown .header__info-time');
+        const tsHistorico = titulo ? titulo.textContent.trim() : extractTimestamp();
+        const rodadaNum = parseInt(lastRoundId) || Math.floor(Date.now() / 1000);
+        const chave = idx + '_' + rodadaNum;
         if (historicoCapturado.has(chave)) return;
         historicoCapturado.add(chave);
 
-        const timestampReal = extractTimestamp();
-        const rodadaNum = parseInt(lastRound) || Math.floor(Date.now() / 1000);
-        log(`📜 Histórico #${rodadaNum} ${value.toFixed(2)}x idx=${idx}`);
+        const rodadaHistorico = rodadaNum - (payouts.length - 1 - idx);
+        if (sentRounds.has(rodadaHistorico)) return;
+        sentRounds.add(rodadaHistorico);
 
+        log(`📜 #${rodadaHistorico} ${value.toFixed(2)}x`);
         fetch(`${SERVER_URL}/api/webhook`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -330,9 +284,9 @@
             token: configToken,
             aviator: getAviatorPainel(),
             rodadas: [{
-              rodada: rodadaNum - (payouts.length - 1 - idx),
+              rodada: rodadaHistorico,
               multiplicador: value,
-              timestamp: timestampReal,
+              timestamp: tsHistorico,
               origem: 'historico',
               cor: null
             }]
@@ -341,7 +295,7 @@
         }).catch(() => {});
       });
     } catch(e) {
-      log('Erro historico:', e.message);
+      log('Historico erro:', e.message);
     }
   }
 

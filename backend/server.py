@@ -126,9 +126,15 @@ def api_webhook():
         for r in rodadas:
             rodada_id = r.get('rodada') or r.get('id') or r.get('round') or int(time.time() * 1000)
             mult = r.get('mult') or r.get('multiplicador') or r.get('multiplier') or r.get('value')
+            timestamp = r.get('timestamp') or r.get('time') or r.get('hora')
             if mult:
                 from models import Rodada
-                rodada_obj = Rodada(int(rodada_id) if isinstance(rodada_id, (int, float)) else hash(str(rodada_id)) % 10000000, float(mult))
+                # Converte rodada_id para int — pode vir como string do JSON
+                try:
+                    rodada_num = int(str(rodada_id).strip())
+                except (ValueError, TypeError):
+                    rodada_num = int(time.time() * 1000) % 10000000
+                rodada_obj = Rodada(rodada_num, float(mult), timestamp)
                 collector._adicionar_rodada(rodada_obj)
 
         return jsonify({
