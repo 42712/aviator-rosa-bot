@@ -1,1 +1,59 @@
-
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard - Painel Master</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:#0F0F1A; color:#fff; min-height:100vh; display:flex; }
+  .sidebar { width:210px; background:#1a1a2e; padding:26px 16px; min-height:100vh;
+    border-right:1px solid rgba(255,255,255,0.05); }
+  .sidebar h2 { font-size:15px; font-weight:800; margin-bottom:26px;
+    background:linear-gradient(135deg,#349CFF,#913EF8);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .sidebar a { display:block; padding:11px 14px; color:#888; text-decoration:none;
+    border-radius:9px; margin-bottom:4px; font-weight:600; font-size:13px; }
+  .sidebar a:hover, .sidebar a.ativo { background:rgba(145,62,248,0.15); color:#913EF8; }
+  .sidebar a.sair { margin-top:26px; color:#FF2D55; }
+  .content { flex:1; padding:28px; }
+  .content h1 { font-size:22px; font-weight:800; margin-bottom:22px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; }
+  .card { background:#1a1a2e; border-radius:14px; padding:22px;
+    border:1px solid rgba(255,255,255,0.05); }
+  .card .numero { font-size:32px; font-weight:900; margin-bottom:4px; }
+  .card .rotulo { font-size:12px; color:#888; text-transform:uppercase; letter-spacing:0.5px; }
+  .card.roxa .numero { color:#913EF8; }
+  .card.verde .numero { color:#00ff88; }
+  .card.rosa .numero { color:#FF2D95; }
+  .card.azul .numero { color:#349CFF; }
+  @media (max-width:768px){ .sidebar{width:56px;padding:18px 8px;}
+    .sidebar h2,.sidebar a span{display:none;} .sidebar a{text-align:center;padding:9px;}
+    .content{padding:14px;} }
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <h2>&#9992; MASTER</h2>
+  <a href="/admin" class="ativo"><span>Dashboard</span></a>
+  <a href="/admin/clientes"><span>Clientes</span></a>
+  <a href="/admin/relatorios"><span>Relatorios</span></a>
+  <a href="/logout" class="sair"><span>Sair</span></a>
+</div>
+<div class="content">
+  <h1>Dashboard</h1>
+  <div class="cards">
+    <div class="card roxa"><div class="numero">{{ stats.total }}</div><div class="rotulo">Total de clientes</div></div>
+    <div class="card verde"><div class="numero">{{ stats.ativos }}</div><div class="rotulo">Ativos</div></div>
+    <div class="card rosa"><div class="numero">{{ stats.bloqueados }}</div><div class="rotulo">Bloqueados</div></div>
+    <div class="card azul"><div class="numero">{{ stats.online }}</div><div class="rotulo">Online agora</div></div>
+  </div>
+  <div style="text-align:center;padding:30px 0 10px;font-size:12px;color:#555;
+    border-top:1px solid rgba(255,255,255,0.05);margin-top:30px;">
+    <strong style="color:#777;display:block;">UpNex Gestao</strong>
+    Copyright &copy; Todos os direitos reservados
+  </div>
+</div>
+</body>
+</html>

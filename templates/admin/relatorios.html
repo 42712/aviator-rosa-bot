@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relatorios - Painel Master</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:#0F0F1A; color:#fff; min-height:100vh; display:flex; }
+  .sidebar { width:210px; background:#1a1a2e; padding:26px 16px; min-height:100vh;
+    border-right:1px solid rgba(255,255,255,0.05); }
+  .sidebar h2 { font-size:15px; font-weight:800; margin-bottom:26px;
+    background:linear-gradient(135deg,#349CFF,#913EF8);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .sidebar a { display:block; padding:11px 14px; color:#888; text-decoration:none;
+    border-radius:9px; margin-bottom:4px; font-weight:600; font-size:13px; }
+  .sidebar a:hover, .sidebar a.ativo { background:rgba(145,62,248,0.15); color:#913EF8; }
+  .sidebar a.sair { margin-top:26px; color:#FF2D55; }
+  .content { flex:1; padding:28px; }
+  .content h1 { font-size:22px; font-weight:800; margin-bottom:22px; }
+  .export-bar { display:flex; justify-content:flex-end; margin-bottom:14px; }
+  .btn-export { padding:9px 18px; background:linear-gradient(135deg,#00ff88,#00cc6a);
+    border:none; border-radius:7px; color:#000; font-size:12px; font-weight:700;
+    text-decoration:none; }
+  .tabela-wrap { background:#1a1a2e; border-radius:14px; padding:16px;
+    border:1px solid rgba(255,255,255,0.05); overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; padding:10px; color:#666; font-weight:600; font-size:10px;
+    text-transform:uppercase; border-bottom:1px solid rgba(255,255,255,0.05); }
+  td { padding:10px; border-bottom:1px solid rgba(255,255,255,0.03); }
+  .tag { display:inline-block; padding:3px 9px; border-radius:11px; font-size:10px; font-weight:700; }
+  .tag-ativo { background:rgba(0,255,136,0.15); color:#00ff88; }
+  .tag-bloqueado { background:rgba(255,45,85,0.15); color:#FF2D55; }
+  @media (max-width:768px){ .sidebar{width:56px;padding:18px 8px;}
+    .sidebar h2,.sidebar a span{display:none;} .sidebar a{text-align:center;padding:9px;}
+    .content{padding:14px;} table{font-size:11px;} }
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <h2>&#9992; MASTER</h2>
+  <a href="/admin"><span>Dashboard</span></a>
+  <a href="/admin/clientes"><span>Clientes</span></a>
+  <a href="/admin/relatorios" class="ativo"><span>Relatorios</span></a>
+  <a href="/logout" class="sair"><span>Sair</span></a>
+</div>
+<div class="content">
+  <h1>Relatorios</h1>
+  <div class="export-bar">
+    <a href="/admin/relatorios/exportar" class="btn-export">Exportar CSV</a>
+  </div>
+  <div class="tabela-wrap">
+    <table>
+      <thead><tr>
+        <th>Nome</th><th>Login</th><th>Status</th><th>Observacao</th><th>Ultimo acesso</th>
+      </tr></thead>
+      <tbody>
+        {% for c in clientes %}
+        <tr>
+          <td><strong>{{ c.nome or '-' }}</strong></td>
+          <td>{{ c.login }}</td>
+          <td>
+            {% if c.bloqueado %}<span class="tag tag-bloqueado">Bloqueado</span>
+            {% else %}<span class="tag tag-ativo">Ativo</span>{% endif %}
+          </td>
+          <td style="color:#aaa;">{{ c.observacao or '-' }}</td>
+          <td style="color:#888;font-size:12px;">{{ c.ultimo_acesso or 'Nunca' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align:center;padding:30px;color:#555;">
+          Nenhum cliente cadastrado</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>
