@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Aviator - Estatistica</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:#0F0F1A; color:#fff; min-height:100vh; }
+  .header {
+    background:linear-gradient(135deg,#1a1a2e,#16213e); padding:12px 16px;
+    display:flex; justify-content:space-between; align-items:center;
+    border-bottom:1px solid rgba(255,255,255,0.05); position:sticky; top:0; z-index:10;
+  }
+  .header-left { display:flex; align-items:center; gap:10px; }
+  .header h1 {
+    font-size:17px; font-weight:800;
+    background:linear-gradient(135deg,#349CFF,#913EF8);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .relogio { font-size:13px; font-weight:700; color:#913EF8; letter-spacing:1px; }
+  .header-sair {
+    color:#FF2D55; text-decoration:none; font-size:12px; font-weight:600;
+    padding:5px 12px; border:1px solid rgba(255,45,85,0.3); border-radius:8px;
+  }
+  .container { max-width:1100px; margin:0 auto; padding:14px; }
+  .tabs { display:flex; gap:8px; margin-bottom:12px; background:#1a1a2e;
+    border-radius:12px; padding:5px; }
+  .tab-btn {
+    flex:1; padding:10px; border:none; border-radius:9px; cursor:pointer;
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:700;
+    background:transparent; color:#666; transition:all 0.25s;
+  }
+  .tab-btn.ativo {
+    background:linear-gradient(135deg,rgba(52,156,255,0.2),rgba(145,62,248,0.2));
+    color:#fff;
+  }
+  .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
+  .card {
+    background:#1a1a2e; border-radius:10px; padding:12px; text-align:center;
+  }
+  .card .num { font-size:21px; font-weight:800; }
+  .card .lbl { font-size:10px; color:#666; text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; }
+  .seca-box {
+    background:#1a1a2e; border-radius:10px; padding:12px 14px; margin-bottom:12px;
+    font-size:12px; color:#aaa;
+  }
+  .seca-box strong { color:#fff; }
+  .titulo { font-size:14px; font-weight:700; color:#ccc; margin-bottom:8px; }
+  .tabela-wrap { background:#1a1a2e; border-radius:10px; overflow:hidden; overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th {
+    text-align:left; padding:9px; color:#666; font-size:10px;
+    text-transform:uppercase; letter-spacing:0.4px;
+  }
+  td { padding:9px; border-top:1px solid rgba(255,255,255,0.04); }
+  tr:hover td { background:rgba(255,255,255,0.02); }
+  .aviso {
+    margin-top:12px; padding:10px 12px; background:rgba(52,156,255,0.07);
+    border:1px solid rgba(52,156,255,0.2); border-radius:8px;
+    font-size:11px; color:#9bbfdf; line-height:1.5;
+  }
+  .vazio { text-align:center; padding:30px; color:#555; }
+  .rodape {
+    text-align:center; padding:18px 0 8px; font-size:11px; color:#555;
+    border-top:1px solid rgba(255,255,255,0.05); margin-top:14px;
+  }
+  .rodape strong { color:#777; display:block; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <span style="font-size:18px;">&#9992;</span>
+    <h1>PAINEL AVIATOR</h1>
+    <span class="relogio" id="relogio">00:00:00</span>
+  </div>
+  <a href="/painel/{{ cliente.token }}/sair" class="header-sair">Sair</a>
+</div>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab-btn ativo" id="btn1" onclick="selecionar(1)">Aviator 1</button>
+    <button class="tab-btn" id="btn2" onclick="selecionar(2)">Aviator 2</button>
+  </div>
+
+  <a href="/painel/{{ cliente.token }}/dash"
+     style="display:block;text-align:center;padding:11px;margin-bottom:12px;
+            border-radius:10px;text-decoration:none;font-size:13px;font-weight:700;
+            color:#fff;background:linear-gradient(135deg,#349CFF,#913EF8);">
+    Voltar para as Velas
+  </a>
+
+  <div class="cards">
+    <div class="card"><div class="num" id="cTotal" style="color:#fff;">0</div><div class="lbl">Velas no historico</div></div>
+    <div class="card"><div class="num" id="cMedia" style="color:#913EF8;">-</div><div class="lbl">Media geral</div></div>
+    <div class="card"><div class="num" id="cMaior" style="color:#FF2D95;">-</div><div class="lbl">Maior vela</div></div>
+  </div>
+  <div class="cards">
+    <div class="card"><div class="num" id="cAzul" style="color:#349CFF;">-</div><div class="lbl">Azul (ja ocorreu)</div></div>
+    <div class="card"><div class="num" id="cRoxa" style="color:#913EF8;">-</div><div class="lbl">Roxa (ja ocorreu)</div></div>
+    <div class="card"><div class="num" id="cRosa" style="color:#FF2D95;">-</div><div class="lbl">Rosa (ja ocorreu)</div></div>
+  </div>
+
+  <div class="seca-box">
+    <div style="margin-bottom:4px;">Maior seca de rosa registrada: <strong id="cMaiorSeca">-</strong></div>
+    <div style="margin-bottom:4px;">Rodadas desde a ultima rosa: <strong id="cSecaAtual">-</strong></div>
+    <div style="margin-bottom:4px;">Intervalo medio entre rosas: <strong id="cIntervalo">-</strong></div>
+    <div>Sequencia atual: <strong id="cStreak">-</strong></div>
+  </div>
+
+  <div class="titulo">Minutagem - o que ja aconteceu por minuto</div>
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Minuto</th><th>Qtd</th><th>Media</th><th>Maior</th>
+          <th style="color:#349CFF;">Azul</th>
+          <th style="color:#913EF8;">Roxa</th>
+          <th style="color:#FF2D95;">Rosa</th>
+        </tr>
+      </thead>
+      <tbody id="corpoMinutagem">
+        <tr><td colspan="7" class="vazio">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="aviso">
+    Esta aba mostra o que ja aconteceu no historico de velas. Cada rodada do
+    Aviator e sorteada de forma independente das anteriores - estes numeros
+    descrevem o passado e nao indicam quais serao as proximas rodadas.
+  </div>
+
+  <div class="rodape">
+    <strong>UpNex Gestao</strong>
+    Copyright &copy; Todos os direitos reservados
+  </div>
+</div>
+
+<script>
+  let painelAtivo = 1;
+
+  function relogio() {
+    var d = new Date();
+    var p = function(n){ return String(n).padStart(2,'0'); };
+    document.getElementById('relogio').textContent =
+      p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+  setInterval(relogio, 1000); relogio();
+
+  function selecionar(n) {
+    painelAtivo = n;
+    document.getElementById('btn1').classList.toggle('ativo', n === 1);
+    document.getElementById('btn2').classList.toggle('ativo', n === 2);
+    carregar();
+  }
+
+  function carregar() {
+    fetch('/api/' + painelAtivo + '/estatistica')
+      .then(function(r){ return r.json(); })
+      .then(function(e){
+        if (!e || !e.total) {
+          document.getElementById('cTotal').textContent = '0';
+          document.getElementById('corpoMinutagem').innerHTML =
+            '<tr><td colspan="7" class="vazio">Nenhuma vela registrada ainda</td></tr>';
+          return;
+        }
+        document.getElementById('cTotal').textContent = e.total;
+        document.getElementById('cMedia').textContent = e.media_geral + 'x';
+        document.getElementById('cMaior').textContent = e.maior_geral + 'x';
+        document.getElementById('cAzul').textContent = e.distribuicao.azul + '%';
+        document.getElementById('cRoxa').textContent = e.distribuicao.roxa + '%';
+        document.getElementById('cRosa').textContent = e.distribuicao.rosa + '%';
+        document.getElementById('cMaiorSeca').textContent =
+          e.maior_seca_rosa + ' rodadas';
+        document.getElementById('cSecaAtual').textContent =
+          e.seca_desde_ultima_rosa + ' rodadas';
+        document.getElementById('cIntervalo').textContent =
+          (e.intervalo_medio_rosa != null
+            ? e.intervalo_medio_rosa + ' rodadas' : 'sem dados');
+        document.getElementById('cStreak').textContent =
+          (e.streak_cor
+            ? e.streak_atual + ' velas ' + e.streak_cor : '-');
+
+        var corpo = document.getElementById('corpoMinutagem');
+        if (!e.minutagem || !e.minutagem.length) {
+          corpo.innerHTML =
+            '<tr><td colspan="7" class="vazio">Sem dados de minutagem</td></tr>';
+          return;
+        }
+        corpo.innerHTML = e.minutagem.map(function(m){
+          return '<tr>' +
+            '<td style="color:#888;">' + m.minuto + '</td>' +
+            '<td>' + m.qtd + '</td>' +
+            '<td style="color:#aaa;">' + m.media + 'x</td>' +
+            '<td style="color:#fff;font-weight:700;">' + m.maior + 'x</td>' +
+            '<td style="color:#349CFF;">' + m.azul + '</td>' +
+            '<td style="color:#913EF8;">' + m.roxa + '</td>' +
+            '<td style="color:#FF2D95;">' + m.rosa + '</td>' +
+          '</tr>';
+        }).join('');
+      })
+      .catch(function(){});
+  }
+
+  carregar();
+  setInterval(carregar, 8000);
+</script>
+</body>
+</html>
